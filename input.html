@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boys Hall Meal Calculation</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f9f9f9; }
+    .container { max-width: 1000px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1, h2 { text-align: center; }
+    input, select, button { width: 100%; padding: 8px; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #007bff; color: white; }
+    #adminPanel, #studentPanel { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Boys Hall Monthly Meal Calculation</h1>
+
+    <div id="loginSection">
+      <h2>Login</h2>
+      <input type="text" id="loginId" placeholder="Enter Student ID or 'admin'">
+      <input type="password" id="loginPass" placeholder="Enter Password (admin only)">
+      <button onclick="login()">Login</button>
+    </div>
+
+    <div id="adminPanel">
+      <h2>Admin Panel</h2>
+      <button onclick="logout()">Logout</button>
+      <h3>Change Admin Password</h3>
+      <input type="password" id="newPass" placeholder="New Password">
+      <button onclick="changePassword()">Change Password</button>
+
+      <h3>Add/Update Student</h3>
+      <input id="name" placeholder="Name">
+      <input id="studentId" placeholder="Student ID">
+      <input id="room" placeholder="Room No">
+      <input id="amountPaid" type="number" placeholder="Amount Paid">
+      <input id="totalMeal" type="number" placeholder="Total Meal">
+      <input id="gasBill" type="number" placeholder="Gas Bill">
+      <button onclick="addOrUpdateStudent()">Add/Update Student</button>
+      <button onclick="calculate()">Calculate</button>
+      <button onclick="window.print()">Print Sheet</button>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Student ID</th><th>Room</th><th>Amount Paid</th><th>Total Meal</th><th>Gas Bill</th>
+            <th>Meal Rate</th><th>Total Meal Cost</th><th>Due</th><th>Return</th>
+          </tr>
+        </thead>
+        <tbody id="adminTable"></tbody>
+      </table>
+    </div>
+
+    <div id="studentPanel">
+      <h2>Your Meal Details</h2>
+      <button onclick="logout()">Logout</button>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Student ID</th><th>Room</th><th>Amount Paid</th><th>Total Meal</th><th>Gas Bill</th>
+            <th>Meal Rate</th><th>Total Meal Cost</th><th>Due</th><th>Return</th>
+          </tr>
+        </thead>
+        <tbody id="studentTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let adminPassword = 'admin';
+    let students = [];
+    let currentUser = null;
+
+    function login() {
+      const id = document.getElementById('loginId').value.trim();
+      const pass = document.getElementById('loginPass').value.trim();
+
+      if (id === 'admin' && pass === adminPassword) {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+      } else {
+        const user = students.find(s => s.studentId === id);
+        if (user) {
+          currentUser = user;
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('studentPanel').style.display = 'block';
+          renderStudentTable();
+        } else {
+          alert('Invalid login');
+        }
+      }
+    }
+
+    function logout() {
+      document.getElementById('loginSection').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('studentPanel').style.display = 'none';
+    }
+
+    function changePassword() {
+      const newPass = document.getElementById('newPass').value;
+      if (newPass) {
+        adminPassword = newPass;
+        alert('Password changed.');
+      }
+    }
+
+    function addOrUpdateStudent() {
+      const student = {
+        name: document.getElementById('name').value,
+        studentId: document.getElementById('studentId').value,
+        room: document.getElementById('room').value,
+        amountPaid: parseFloat(document.getElementById('amountPaid').value),
+        totalMeal: parseFloat(document.getElementById('totalMeal').value),
+        gasBill: parseFloat(document.getElementById('gasBill').value)
+      };
+
+      const index = students.findIndex(s => s.room === student.room);
+      if (index !== -1) students[index] = student;
+      else students.push(student);
+
+      renderAdminTable();
+    }
+
+    function calculate() {
+      const totalPaid = students.reduce((sum, s) => sum + s.amountPaid, 0);
+      const totalMeals = students.reduce((sum, s) => sum + s.totalMeal, 0);
+      const mealRate = totalMeals > 0 ? totalPaid / totalMeals : 0;
+
+      students.forEach(s => {
+        s.mealRate = mealRate;
+        s.totalMealCost = s.totalMeal * mealRate;
+        s.totalBill = s.totalMealCost + s.gasBill;
+        s.due = s.totalBill > s.amountPaid ? s.totalBill - s.amountPaid : 0;
+        s.return = s.amountPaid > s.totalBill ? s.amountPaid - s.totalBill : 0;
+      });
+      renderAdminTable();
+      renderStudentTable();
+    }
+
+    function renderAdminTable() {
+      const tbody = document.getElementById('adminTable');
+      tbody.innerHTML = '';
+      students.forEach(s => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${s.name}</td><td>${s.studentId}</td><td>${s.room}</td><td>৳${s.amountPaid.toFixed(2)}</td>
+            <td>${s.totalMeal}</td><td>৳${s.gasBill.toFixed(2)}</td><td>৳${(s.mealRate || 0).toFixed(2)}</td>
+            <td>৳${(s.totalMealCost || 0).toFixed(2)}</td><td>৳${(s.due || 0).toFixed(2)}</td><td>৳${(s.return || 0).toFixed(2)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderStudentTable() {
+      if (!currentUser) return;
+      const s = currentUser;
+      const tbody = document.getElementById('studentTable');
+      tbody.innerHTML = `
+        <tr>
+          <td>${s.name}</td><td>${s.studentId}</td><td>${s.room}</td><td>৳${s.amountPaid.toFixed(2)}</td>
+          <td>${s.totalMeal}</td><td>৳${s.gasBill.toFixed(2)}</td><td>৳${(s.mealRate || 0).toFixed(2)}</td>
+          <td>৳${(s.totalMealCost || 0).toFixed(2)}</td><td>৳${(s.due || 0).toFixed(2)}</td><td>৳${(s.return || 0).toFixed(2)}</td>
+        </tr>
+      `;
+    }
+  </script>
+</body>
+</html>
